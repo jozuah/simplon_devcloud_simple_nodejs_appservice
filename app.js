@@ -48,8 +48,8 @@ app.get('/all_meme', function (req, res) {
 
 
 
-// app.listen(80, function () {
-//   console.log('Hello world app listening on port 3000!')
-// })
+app.listen(5000, function () {
+  console.log('Hello world app listening on port 3000!')
+})
 
-module.exports = app;
+//module.exports = app;
