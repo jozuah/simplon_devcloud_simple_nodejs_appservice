@@ -1,9 +1,11 @@
-var express = require('express')
-var app = express()
-var os = require('os');
+let express = require('express')
+const app = express()
+var port = process.env.PORT || 3000
 require('dotenv').config()
+
 const cors = require("cors")
 app.use(cors());
+
 const MongoClient = require('mongodb').MongoClient;
 const url = process.env.CONNECTION_STRING
 
@@ -48,8 +50,7 @@ app.get('/all_meme', function (req, res) {
 
 
 
-app.listen(5000, function () {
-  console.log('Hello world app listening on port 3000!')
+app.listen(port, function () {
+  console.log('Hello world app listening on port ' + port )
 })
 
-//module.exports = app;

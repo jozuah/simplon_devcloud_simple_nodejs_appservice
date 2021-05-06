@@ -1,10 +1,11 @@
 {
-  "name": "serveur_bdd",
+  "name": "server_nodejs",
   "version": "1.0.0",
   "description": "",
   "main": "app.js",
   "scripts": {
-    "start": "node app.js"
+    "test" : "echo \"ERROR: no test specified\" && exit 1"
+  
   },
   "author": "",
   "license": "ISC",
