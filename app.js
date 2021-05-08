@@ -8,16 +8,29 @@ const bcrypt = require("bcryptjs")
 // Librairie pour les token de vérification
 const jwt = require("jsonwebtoken")
 
+//librairie pour transformer les cookie en json
+const cookieParser = require("cookie-parser")
+
 require('dotenv').config()
 
 const cors = require("cors")
-app.use(cors());
+
 
 const MongoClient = require('mongodb').MongoClient;
 const url = process.env.CONNECTION_STRING
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+app.use(cookieParser());
+//j'accepte les requête venant uniquement d'un front particulier
+app.use(
+    cors({
+        //Mon front réact est déployé sur le port 3001
+        origin: ["http://localhost:3001"],
+        //permettre l'envoie des cookies à mon front
+        credentials:true,
+    })
+);
 
 async function findUser(username_query) {
 
@@ -44,6 +57,40 @@ async function createUser(username_query, password_query_hash) {
         console.log(err);
     }
 }
+
+//Je crée une variable d'identification qui check que le token dans mes cookies à été créé avec le token de mon serveur
+const authentification = (req, res, next) => {
+    try {
+        //on teste avec un cookie fait maison car POSTMAN ne permet pas de storer les cookie
+        req.cookies.token = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyIjoiNjA5NTZkMDY1OWY3NTk0NmJkNjA4YTBhIiwiaWF0IjoxNjIwNDA4NDU1fQ.Is98mbNhapVixYF2uO2UHFPmyph7ZL2esfMYH6KqTww";  
+        const token_cookie = req.cookies.token
+
+        //Si il n'y a pas de token => erreur
+        if (!token_cookie){ 
+            return res.status(401).json({errorMessage : "token fail"})
+        }
+
+
+        //comparaison des 2 tokens
+        const decoded = jwt.verify(token_cookie, process.env.JWT_PASSWORD);
+        
+        console.log(decoded)
+
+        // Dans decoded.user il y a la variable que j'ai mis lors de la création du token => _id de mon user, j'attribu a req.user l'id de mon user et ma constante va storer cette valeur que je vais utiliser dans ma rout /add_meme comme variable d'identification => qui a poster le meme
+        req.user = decoded.user
+        
+        console.log("token ok");
+
+        //On peut continuer vu que la vérification s'est bien passée
+        next()
+  
+    } catch (err) {
+      console.log(err);
+      res.status(401).json({
+          errorMessage : "token fail"
+        })
+    }
+  }
 
 app.get('/', function (req, res) {
   res.send('Hello World')
@@ -127,11 +174,13 @@ app.post('/register',async function (req, res){
 
 //////////////////////////     CREATE A NEW USER     ////////////////////////////////////
         let newUser = await createUser(username_query, password_query_hash);
+        //tester si je peux juste avoir le champ username
+        //console.log(newUser.ops.username)
 
 
 /////////////////////////   LOG USER 1      //////////////////////////////
 
-        //Je crée un token avec l'id venant de la db et le password de mon serveur stocké dans le .env
+        //Je crée un token avec le username venant de la db et le password de mon serveur stocké dans le .env
         const token = jwt.sign(
             {
                 user: newUser._id,
@@ -181,7 +230,7 @@ app.post('/login', async function (req, res){
             return res.status(401).json({errorMessage : "Wrong username or password"})
         }
 
-        //Je crée un token avec l'id venant de la db et le password de mon serveur stocké dans le .env
+        //Je crée un token avec le username venant de la db et le password de mon serveur stocké dans le .env
         const token = jwt.sign(
             {
                 user: matchUser._id,
@@ -218,30 +267,18 @@ app.get("/logout", function(req, res) {
 
 //Endpoint privé (seul un utilisateur authentifié peut l'utiliser) qui met un lien dans la BDD avec le username
 // on va tester dans postman avec un token existant : "token : ": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyIjoiNjA5NTZkMDY1OWY3NTk0NmJkNjA4YTBhIiwiaWF0IjoxNjIwNDA4NDU1fQ.Is98mbNhapVixYF2uO2UHFPmyph7ZL2esfMYH6KqTww"
-app.post('/add_meme', async function (req, res){
+app.post('/add_meme', authentification ,async function (req, res){
     try {
         const name_meme_query = req.body.name_meme
-        const token_query = req.body.token
         
-        // Le original token sera celui stocké dans les cookies ou 
-        const token_storage = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyIjoiNjA5NTZkMDY1OWY3NTk0NmJkNjA4YTBhIiwiaWF0IjoxNjIwNDA4NDU1fQ.Is98mbNhapVixYF2uO2UHFPmyph7ZL2esfMYH6KqTww"
-
-        
-        jwt.verify(token_query, token_storage, function (err, decoded){
-            if(err){
-              res.send({
-                  'response : ' : "Vous pouvez enregister un fichier"
-              }
-              );
-            } else {
-              res.send("fail token");
-            }
-        });        
+        //Je peux voir qui a poster le meme grâce a l'_id
+        console.log("mon user:", req.user)
+        res.send(name_meme_query)     
 
     } catch(err) {
         console.error(err);
         res.status(500).send();
-    } 
+    }  
 })
 
 app.listen(port, function () {
